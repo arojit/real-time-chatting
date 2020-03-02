@@ -168,7 +168,12 @@
       const socket = io("http://localhost:8080");
       
       socketUUID = SocketUUIDGenerate();
-      socket.emit("AgentJoin", {"userID": socketUUID, "type": "Agent", "domain": "Retail"});
+      var config = {
+        "userID": socketUUID, 
+        "type": "Agent", 
+        "domain": "Retail" ////Just Change This for Another Domain
+      }
+      socket.emit("AgentJoin", config);
 
       var receiverId = "";
 

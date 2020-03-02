@@ -1,0 +1,248 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Agent</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <style>
+        .navbar-inverse {
+            background-color: #3BB9FF;
+            border-color: #3BB9FF;
+        }
+        /* CSS talk bubble */
+        .talk-bubble-right {
+            margin: 20px;
+            display: inline-block;
+            position: relative;
+            width: 70%;
+            height: auto;
+            background-color: #3BB9FF;
+            color: white;
+        }
+        .talk-bubble-left {
+            margin: 20px;
+            margin-left: 65px;
+            display: inline-block;
+            position: relative;
+            width: 70%;
+            height: auto;
+            background-color: gray;
+            color: white;
+        }
+        .border-right{
+            border: 8px solid #3BB9FF;
+        }
+        .border-left{
+            border: 8px solid gray;
+        }
+        .round{
+            border-radius: 30px;
+            -webkit-border-radius: 30px;
+            -moz-border-radius: 30px;
+
+        }
+        /* Right triangle placed top right flush. */
+        .tri-right.border-right.right-top:before {
+            content: ' ';
+            position: absolute;
+            width: 0;
+            height: 0;
+            left: auto;
+            right: -40px;
+            top: -8px;
+            bottom: auto;
+            border: 32px solid;
+            border-color: #3BB9FF transparent transparent transparent;
+        }
+        .tri-right.right-top:after{
+            content: ' ';
+            position: absolute;
+            width: 0;
+            height: 0;
+            left: auto;
+            right: -20px;
+            top: 0px;
+            bottom: auto;
+            border: 20px solid;
+            border-color: #3BB9FF transparent transparent transparent;
+        }
+        /* left triangle placed top left flush. */
+        .tri-left.border-left.left-top:before {
+            content: ' ';
+            position: absolute;
+            width: 0;
+            height: 0;
+            righr: auto;
+            left: -40px;
+            top: -8px;
+            bottom: auto;
+            border: 32px solid;
+            border-color: gray transparent transparent transparent;
+        }
+        .tri-left.left-top:after{
+            content: ' ';
+            position: absolute;
+            width: 0;
+            height: 0;
+            right: auto;
+            left: -20px;
+            top: 0px;
+            bottom: auto;
+            border: 20px solid;
+            border-color: gray transparent transparent transparent;
+        }
+        /* talk bubble contents */
+        .talktext{
+            padding: 1em;
+            text-align: left;
+            line-height: 1.5em;
+        }
+        .talktext p{
+            /* remove webkit p margins */
+            -webkit-margin-before: 0em;
+            -webkit-margin-after: 0em;
+        }
+
+        /* width */
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        /* Track */
+        ::-webkit-scrollbar-track {
+            box-shadow: inset 0 0 5px grey; 
+            border-radius: 10px;
+        }
+
+        /* Handle */
+        ::-webkit-scrollbar-thumb {
+            background: #3BB9FF; 
+            border-radius: 10px;
+        }
+    </style>
+  </head>
+  <body>
+    <nav class="navbar navbar-inverse">
+        <div class="container-fluid">
+            <div class="navbar-header">
+                <a class="navbar-brand" href="#" style="color:white">Agent</a>
+            </div>
+        </div>
+    </nav>
+    <div class="container">
+        
+      <div class="row">
+        <div class="col-md-4">
+            <div id="chatRequestDiv" style="display: none">
+              <input type="button" class="btn" value="Accept" onclick="acceptRequest()" style="width:100x; height: 50px; background-color: green; color: white">
+              <input type="button" class="btn" value="Reject" onclick="rejectRequest()" style="width:100x; height: 50px; background-color: red; color: white">
+            </div>
+        </div>
+        <div class="col-md-8" style="border: 1px solid #3BB9FF;">
+            <div class="row" style="height: 482px; overflow-y: auto" id="messageBox">
+              <div class="talk-bubble-right tri-right round border-right right-top">
+                  <div class="talktext">
+                      <p>Hello Agent, Welcome Back!</p>
+                  </div>
+                  <div style="text-align: right; border-top: 1px solid #95B9C7">10:20 am <span>&#10003;</span><span>&#10003;</span></div>
+              </div>
+            </div>
+            <div class="row">
+                <div class="input-group">
+                    <textarea class="form-control custom-control" rows="3" placeholder="Type your message" style="resize:none" id="message" readonly></textarea>     
+                    <span class="input-group-addon" style="background-color: #3BB9FF; color: white; cursor: pointer" onclick="sendMessage()" id="MsgSendBtn" readonly>Send</span>
+                </div>
+            </div>
+        </div>
+      </div>
+
+    </div>
+    
+    <script>
+      const socket = io("http://localhost:8080");
+      
+      socketUUID = SocketUUIDGenerate();
+      socket.emit("AgentJoin", {"userID": socketUUID, "type": "Agent", "domain": "Retail"});
+
+      var receiverId = "";
+
+      socket.on("message", function(data) {
+        var rightBubble = '<div class="talk-bubble-right tri-right round border-right right-top">'+
+            '<div class="talktext">'+
+                '<p>'+data+'</p>'+
+            '</div>'+
+            '<div style="text-align: right; border-top: 1px solid #95B9C7">'+new Date().toLocaleTimeString()+' am <span>&#10003;</span><span>&#10003;</span></div>'+
+        '</div>';
+        $("#messageBox").append(rightBubble);
+        $('#messageBox').animate({scrollTop: document.body.scrollHeight},"fast");
+        console.log(data);
+      });
+
+      socket.on("AgentJoin", function(data) {
+        console.log(data);
+      });
+
+      socket.on("chatRequest", function(data) {
+        $("#chatRequestDiv").show();
+        receiverId = data["from"];
+        console.log(data);
+      });
+
+      function SocketUUIDGenerate() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            var r = Math.random() * 16 | 0,
+                v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+      }
+    </script>
+
+    <script>
+      function sendMessage(){
+        var message = document.getElementById("message").value;
+        if(message.trim() == ""){
+          return 0;
+        }
+        var socketMsg = {
+            "message": message,
+            "userID": socketUUID,
+            "sendTo": receiverId
+        }
+        socket.emit("userMessage", socketMsg);
+
+        document.getElementById("message").value = "";
+
+        var leftBubble = '<div class="talk-bubble-left tri-left round border-left left-top">'+
+            '<div class="talktext">'+
+                '<p>'+message+'</p>'+
+            '</div>'+
+            '<div style="text-align: right; border-top: 1px solid #C0C0C0">'+new Date().toLocaleTimeString()+' <span>&#10003;</span></div>'+
+        '</div>';
+        $("#messageBox").append(leftBubble);
+        $('#messageBox').animate({scrollTop: document.body.scrollHeight},"fast");
+      } 
+    </script>
+
+    <script>
+      function acceptRequest(){
+        $("#chatRequestDiv").hide();
+        $("#message").attr("readonly", false);
+        let message = "Hi, I'm your <b>domain</b> agent.<br/>How may I help you?";
+        document.getElementById("message").value = message;
+        $( "#MsgSendBtn" ).trigger( "click" );
+        
+        socket.emit("acceptRequest", {"message": "Request Accepted", "agentId": socketUUID, "sendTo": receiverId});
+      }
+
+      function rejectRequest(){
+        $("#chatRequestDiv").hide();
+      }
+    </script>
+  </body>
+</html>
